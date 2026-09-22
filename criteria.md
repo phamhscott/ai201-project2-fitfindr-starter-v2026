@@ -29,6 +29,8 @@ tool calls and returns a fit card — in at least 4 of 5 tries.
      "my search is a plain keyword match and some phrasings will miss" is a
      real answer. -->
 
+This criterion tests whether or not our FitFindr system that holds the necessary information to complete the agent loop from the original query behaves as intended: query matches a listing, agent suggests an outfit, and then a caption to a post is created. This criterion is expected to be met most of the time, given that a listing does match the query so the failure point will be on if passing of information between tool calls is properly set up. A 4 out of 5 targets allows for on transient or variable generation failure. A lower target would leave too many valid queries unfinished, while a 5 of 5 is less realistic when two external models calls are required in the loop.
+
 ---
 
 ## 2. An impossible query stops before the second tool
@@ -40,9 +42,11 @@ Given a query that matches no listings, the agent stops before calling
 <!-- Why is 5 of 5 reasonable here when criterion 1 isn't? What's different
      about this path? -->
 
+This path is our branch rule path where if a query does not match any listing (from search_listings()), then an empty list is returned and an error message is put into the session state to tell the user to broaden its description, price, or size. Because this path is independent of any AI generation calls and this rule is baked into the construction of our system (loop stops if search_listings() returns an empty list and session has an error message), we expect this criterion to be met 5 out of 5 times, since any miss means a faulty implementation that was fully in our control. Stopping the loop, storing an actionable error message, and skipping suggest_outfit are entirely controlled by the planning-loop code, so this path should work in all 5 tries.
+
 ---
 
-## 3. Something about state
+## 3. The selected listing is preserved across the state handoff
 
 <!-- YOU WRITE THIS ONE.
 
@@ -54,15 +58,18 @@ Given a query that matches no listings, the agent stops before calling
      compares session["selected_item"] against what actually reached
      suggest_outfit is the shape you're after. -->
 
+Given a query that returns matching listings, the listing ID passed as `new_item` to `suggest_outfit` equals both `session["selected_item"]["id"]` and `session["search_results"][0]["id"]` in 5 of 5 tries.
+
 
 
 **Why this target:**
 
+The planning loop is designed to select the first, highest-ranked search result and pass that same listing dict into `suggest_outfit`. Listing IDs uniquely, identify items, so comparing IDs provides and observable test that the session did not drop or replace the selected item. This transfer is controlled entirely by code and occurs before AI usage / generation, so it should succeed in all 5 tries.
 
 
 ---
 
-## 4. Something about the fit card
+## 4. Fit card coincides with the selected listing
 
 <!-- YOU WRITE THIS ONE.
 
@@ -75,15 +82,16 @@ Given a query that matches no listings, the agent stops before calling
      sentence? A card longer than a caption anyone would post? Any of those can
      be turned into a number. -->
 
-
+When the same matching query is run 5 times, the fit card contains (case-insensitive) the selected listing's `platform` value and at least one complete phrase from its `style_tags` list in at least 4 of 5 tries.
 
 **Why this target:**
 
+The caption mentioning the platform (using the field value) means that it truly uses the selected listing items information (where the item was found), while including a style tag connects the caption's vibe to the actual listing. checking values from the listing makes the criterion measurable even though the rest of the caption may vary. Because `create_fit_card` uses a generative model here, 4 of 5 allows on variation that perhaps overly paraphrases and omits a requested detail.
 
 
 ---
 
-## 5. Your choice
+## 5. The outfit suggestion uses the user's wardrobe
 
 <!-- YOU WRITE THIS ONE TOO.
 
@@ -92,10 +100,11 @@ Given a query that matches no listings, the agent stops before calling
      search respects a price ceiling — anything, as long as it names a number
      or an observable outcome. -->
 
-
+Given a matching query and the example wardrobe, `outfit_suggestion` contains (case-insensitive), the complete `name` of at least one item from `wardrobe["items"]` in at least 4 of 5 tries.
 
 **Why this target:**
 
+FitFindr should combine a new listing with something the user already owns rather than returning generic styling advice from the new listing item. Requiring an existing wardrobe item's name makes that behavior directly observable. Because the suggestion is model generated and may occasionally paraphrase or omit an items full-name, 4 of 5 is challenging but more realistic than 5 of 5.
 
 
 ---
