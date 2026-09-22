@@ -128,18 +128,36 @@ $ python app.py ask '...'
 **The three tools, tested one at a time**
 
 ```
-$ python -c "from tools import search_listings; print(search_listings('graphic tee', max_price=30))"
-
+$ .venv\Scripts\python.exe -c "from tools import search_listings; print([(x['id'], x['title'], x['size'], x['price']) for x in search_listings('graphic tee', size='L', max_price=30)])"
+[('lst_006', 'Graphic Tee — 2003 Tour Bootleg Style', 'L', 24.0), ('lst_033', 'Vintage Band Tee — Faded Grey', 'L', 19.0), ('lst_015', 'Vintage Graphic Hoodie — Faded Black', 'L', 26.0)]
 ```
 
 ```
-$ python -c "from tools import suggest_outfit; ..."
+$ .venv\Scripts\python.exe -c "from tools import suggest_outfit; from utils.data_loader import get_example_wardrobe, load_listings; print(suggest_outfit(load_listings()[0], get_example_wardrobe()))"
+**Outfit 1: Casual Streetwear**
+- **Listing:** Vintage Levi's 501 Jeans — Medium Wash
+- **Top:** White ribbed tank top
+- **Outerwear:** Vintage black denim jacket
+- **Shoes:** Chunky white sneakers
+- **Accessories:** Black crossbody bag
 
+**Outfit 2: Cozy & Classic**
+- **Listing:** Vintage Levi's 501 Jeans — Medium Wash
+- **Top:** Oversized grey crewneck sweatshirt
+- **Shoes:** Black combat boots
+- **Accessories:** Brown leather belt
 ```
 
 ```
-$ python -c "from tools import create_fit_card; ..."
+$ .venv\Scripts\python.exe -c "import config; config.CACHE_ENABLED=False; from tools import create_fit_card; from utils.data_loader import load_listings; item=load_listings()[0]; [print('FIT CARD ', i, ':\n', create_fit_card('jeans and white sneakers', item), '\n', sep='') for i in range(1, 4)]"
+FIT CARD 1:
+Score these classic Levi's 501 jeans for just $38.00 on depop today! They bring effortless vintage vibes to any fit, especially when paired with your favorite white sneakers. Grab this timeless denim staple before it's gone!
 
+FIT CARD 2:
+Grab these classic Vintage Levi's 501 Jeans for just $38.00 on depop today! Pair them with your favorite white sneakers for an effortless, streetwear-ready vibe.
+
+FIT CARD 3:
+Rock these classic vintage Levi's 501 Jeans for just $38.00 on Depop! Pair them with your favorite white sneakers for an effortless streetwear vibe that never goes out of style.
 ```
 
 ---
