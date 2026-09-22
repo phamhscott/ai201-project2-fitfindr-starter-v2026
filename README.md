@@ -41,6 +41,7 @@
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
+FitFindr takes in a user's request of a clothing item they describe, possibly with a maximum price and desired size, and finds a current listing from a catalog of items on sale that best matches what they're looking for. A full outfit using the items in their wardrobe is then created along with a potential post caption of the suggested fit. For example a user might ask for "vintage graphic tee under $30, size M." FitFindr will then return a listing that best matches that request "Y2K Baby Tee — Butterfly Print — $18.0 on depop," and suggest a full outfit using this new item and the clothing pieces in the user's wardrobe. A fit card is also given detailing a potential caption that describes their suggested outfit that they might post.
 
 
 ---
@@ -105,9 +106,9 @@
 
 **Where it lives:** `agent.py::run_agent`
 
-**How the query is parsed:** Regular expressions extract an optional size after `size` and an optional price after `under`, `below`, `up to`, or `max`. The remaining normalized text becomes the description. Parsing does not call the model.
+**How the query is parsed:** Regular expressions extract an optional size after `size` and an optional price after `under`, `below`, `up to`, or `max`. The remaining normalized text becomes the description. Parsing does not call the model which is a tradeoff. For this current version right now, the decision of using regex was informed by the supplied example queries which use a predictable format. Regex which is deterministic and fast exploits this. However using regex of course means there is an expected wording that the queries follow. In the future, to expand the recognized queries and accurately parse the prices and sizing, model parsing could be used or perhaps a hybrid of regex and model calls.
 
-**What moves through the session:** `query` is parsed into `parsed`, then `search_listings` writes `search_results`. The first result becomes `selected_item`; `suggest_outfit` reads `selected_item` and `wardrobe` and writes `outfit_suggestion`; `create_fit_card` reads `outfit_suggestion` and `selected_item` and writes `fit_card`. An empty `search_results` list writes `error` and stops the loop before the later fields are filled.
+**What moves through the session:** `query` is parsed into `parsed`, then `search_listings` takes in the parsed query and writes `search_results`. The first result becomes `selected_item`. `suggest_outfit` reads `selected_item` and `wardrobe` and writes `outfit_suggestion`. `create_fit_card` reads `outfit_suggestion` and `selected_item` and writes `fit_card`. An empty `search_results` list writes `error` and stops the loop before the later fields are filled.
 
 ---
 
@@ -198,15 +199,15 @@ Rock these classic vintage Levi's 501 Jeans for just $38.00 on Depop! Pair them 
 
 **Moment 1**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked AI to help implement the three tool stubs from my Tool Inventory without wiring them into the agent loop yet.
+- *What came back:* It produced a keyword-overlap implementation of `search_listings` with size and price filters, separate `suggest_outfit` prompts for saved and empty wardrobes, and a `create_fit_card` prompt with an empty-outfit guard. It also explained the deterministic fallback strings used when a model call succeeds but returns empty text.
+- *What I changed:* While reviewing the search tokenizer, I noticed that `Levi's` became the two tokens `levi` and `s`. I changed `_search_terms` to remove both straight and curly apostrophes before applying the regex, so `Levi's` and `Levis` both normalize to `levis` and produce a more meaningful keyword-overlap score.
 
 **Moment 2**
 
-- *What I asked for:*
-- *What came back:*
-- *What I changed:*
+- *What I asked for:* I asked AI to help me test the tools with reproducible terminal commands for each tool, including three calls to `create_fit_card` on the same item.
+- *What came back:* For each tool it created a command to run each with the relevant parameters. It ran `search_listings` with description, size, and price inputs; ran `suggest_outfit` with both the example and empty wardrobes; and ran `create_fit_card` three times with caching disabled. The outputs showed ranked filtered listings, exact saved wardrobe-item names in the outfit suggestion, general advice for an empty wardrobe, and three different fit-card captions that retained listing details.
+- *What I changed:* I kept the concise search projection so the returned IDs, titles, sizes, and prices were readable instead of printing every field, and kept the uncached three-run fit-card command so variation was tested rather than hidden by the build cache (three runs with same item). After confirming the tests/outputs myself, I pasted the exact commands that it gave me and output into the Sample Run section before wiring the tools together.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
