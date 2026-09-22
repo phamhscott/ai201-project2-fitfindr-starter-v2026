@@ -13,10 +13,43 @@ Build and test your three tools in `tools.py` first. Then come here.
     python agent.py          runs both example paths below
 """
 
+import re
+
 import config
 import trace
 from tools import search_listings, suggest_outfit, create_fit_card
 from generate import ModelUnavailable
+
+
+_PRICE_RE = re.compile(
+    r"\b(?:under|below|up\s+to|max(?:imum)?)\s*\$?\s*(\d+(?:\.\d{1,2})?)\b",
+    re.IGNORECASE,
+)
+_SIZE_RE = re.compile(
+    r"\b(?:in\s+)?size\s+((?:us\s*)?\d+(?:\.\d+)?|"
+    r"w\d+(?:\s+l\d+)?|[a-z]{1,3}(?:/[a-z]{1,3})?)\b",
+    re.IGNORECASE,
+)
+
+
+def _parse_query(query: str) -> dict:
+    """Extract optional size and price filters, leaving search words behind."""
+    price_match = _PRICE_RE.search(query)
+    size_match = _SIZE_RE.search(query)
+
+    max_price = float(price_match.group(1)) if price_match else None
+    size = " ".join(size_match.group(1).upper().split()) if size_match else None
+
+    description = _PRICE_RE.sub(" ", query)
+    description = _SIZE_RE.sub(" ", description)
+    description = re.sub(r"[,;]+", " ", description)
+    description = re.sub(r"\s+", " ", description).strip()
+
+    return {
+        "description": description,
+        "size": size,
+        "max_price": max_price,
+    }
 
 
 # ── session state ─────────────────────────────────────────────────────────────
@@ -107,8 +140,55 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     """
     session = new_session(query, wardrobe)
 
-    # TODO: delete these two lines and build the loop.
-    session["error"] = "The planning loop isn't built yet — see the TODO in agent.py."
+    next_step = "parse_query"
+    iterations = 0
+
+    while next_step != "done":
+        iterations += 1
+        trace.check_iterations(iterations)
+
+        if next_step == "parse_query":
+            session["parsed"] = _parse_query(session["query"])
+            next_step = "search_listings"
+            continue
+
+        if next_step == "search_listings":
+            parsed = session["parsed"]
+            session["search_results"] = search_listings(
+                description=parsed["description"],
+                size=parsed["size"],
+                max_price=parsed["max_price"],
+            )
+
+            if not session["search_results"]:
+                session["error"] = (
+                    "No matching listings were found. Try a broader description, "
+                    "another size, or a higher price limit."
+                )
+                return session
+
+            session["selected_item"] = session["search_results"][0]
+            next_step = "suggest_outfit"
+            continue
+
+        if next_step == "suggest_outfit":
+            session["outfit_suggestion"] = suggest_outfit(
+                session["selected_item"],
+                session["wardrobe"],
+            )
+            next_step = "create_fit_card"
+            continue
+
+        if next_step == "create_fit_card":
+            session["fit_card"] = create_fit_card(
+                session["outfit_suggestion"],
+                session["selected_item"],
+            )
+            next_step = "done"
+            continue
+
+        raise RuntimeError(f"Unknown planning step: {next_step}")
+
     return session
 
 
