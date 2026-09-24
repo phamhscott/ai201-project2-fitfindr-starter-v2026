@@ -13,10 +13,7 @@
 > python app.py ask 'vintage graphic tee under $30'
 > ```
 >
-> All three tools are stubs, so that last command will do nothing useful yet.
-> That's the starting position.
->
-> **The rest of this file is your submission.** Fill it in as you go.
+
 
 ---
 
@@ -41,7 +38,7 @@
 
 <!-- Three or four sentences: what a user asks for, and what they get back. -->
 
-FitFindr takes in a user's request of a clothing item they describe, possibly with a maximum price and desired size, and finds a current listing from a catalog of items on sale that best matches what they're looking for. A full outfit using the items in their wardrobe is then created along with a potential post caption of the suggested fit. For example a user might ask for "vintage graphic tee under $30, size M." FitFindr will then return a listing that best matches that request "Y2K Baby Tee — Butterfly Print — $18.0 on depop," and suggest a full outfit using this new item and the clothing pieces in the user's wardrobe. A fit card is also given detailing a potential caption that describes their suggested outfit that they might post.
+FitFindr takes in a user's request of a clothing item they describe, possibly with a maximum price and desired size, and finds a current listing from a catalog of items on sale that best matches what they're looking for. A full outfit using the items in their wardrobe is then created along with a potential post caption of the suggested fit. For example a user might ask for "vintage graphic tee under $30, size M." FitFindr will then return a listing that best matches that request "Y2K Baby Tee — Butterfly Print — $18.0 on depop," suggest a full outfit using this new item and the clothing pieces in the user's wardrobe, and give a fit card detailing a potential caption that describes their suggested outfit that they might post.
 
 
 ---
@@ -63,7 +60,7 @@ FitFindr takes in a user's request of a clothing item they describe, possibly wi
 - **What it does:** Searches the available listings data for items that match the given input description as well as optionally the given size and price ceiling.
 - **Inputs:** <!-- name and type each: `max_price` (float), not "a price" -->
   - `description` (str): keywords describing what the user wants
-  - `size` (str | None): size string to filter by or None using case-insensitive matching with complete size tokens, including slash-separated sizes. For example, M matches M ans S/M, but S does not match to US 9. Nones skips size filtering.
+  - `size` (str | None): size string to filter by or None using case-insensitive matching with complete size tokens, including slash-separated sizes. For example, M matches M and S/M, but S does not match to US 9. None skips size filtering.
   - `max_price` (float | None): maximum price, inclusive or None
 - **Returns:** (list[dict]): A list of matching listing dicts with the best match first. Each listing dict has these fields:
   - id, title, description, category, style_tags (list), size, condition, price (float), colors (list), brand (str or None), platform
@@ -84,7 +81,7 @@ FitFindr takes in a user's request of a clothing item they describe, possibly wi
 - **Inputs:**
   - `outfit` (str): outfit suggestion string from suggest_outfit()
   - `new_item` (dict): listing dict for the item
-- **Returns:** (str): A two-to-four sentence caption that reads like a real post rather than a product description, mentioning them item, its price and platform, as well as its vibe.
+- **Returns:** (str): A two-to-four sentence caption that reads like a real post rather than a product description, mentioning the item, its price and platform, as well as its vibe.
 - **When it has nothing:** If outfit is empty, returns a descriptive message, rather than raising, explaining that an outfit suggestion is required.
 
 ---
