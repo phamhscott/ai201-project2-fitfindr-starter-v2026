@@ -142,6 +142,7 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
     next_step = "parse_query"
     iterations = 0
+    from mcp_client import call_tool
 
     while next_step != "done":
         iterations += 1
@@ -154,11 +155,18 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         if next_step == "search_listings":
             parsed = session["parsed"]
-            session["search_results"] = search_listings(
-                description=parsed["description"],
-                size=parsed["size"],
-                max_price=parsed["max_price"],
-            )
+            # session["search_results"] = search_listings(
+            #     description=parsed["description"],
+            #     size=parsed["size"],
+            #     max_price=parsed["max_price"],
+            # )
+
+            # for Unit 4, Milestone 1, swap the direct call above for an MCP one.
+            session["search_results"] = call_tool("search_listings", {
+                "description": parsed["description"],
+                "size": parsed["size"],
+                "max_price": parsed["max_price"],
+            })
 
             if not session["search_results"]:
                 session["error"] = (

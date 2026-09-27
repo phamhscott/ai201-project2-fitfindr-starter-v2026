@@ -68,22 +68,28 @@ mcp = FastMCP("fitfindr", log_level="WARNING")
 
 
 # ── TODO: uncomment and fill this in ──────────────────────────────────────────
-#
-# @mcp.tool()
-# def search_listings(
-#     description: str,
-#     size: str | None = None,
-#     max_price: float | None = None,
-# ) -> list[dict]:
-#     """
-#     <-- YOUR DESCRIPTION GOES HERE.
-#
-#         One or two sentences. What does this tool do, what does it need, and
-#         what does it give back when it finds nothing? Written for a reader
-#         who cannot see the code.
-#     """
-#     return _search_listings_impl(description, size, max_price)
-#
+
+@mcp.tool()
+def search_listings(
+    description: str,
+    size: str | None = None,
+    max_price: float | None = None,
+) -> list[dict]:
+    """
+    Searches the available listings data for items that match the given input description (str) as well as optionally the given size (str | None) and price ceiling (float | None).
+
+    Inputs:
+        - `description` (str): keywords describing what the user wants
+        - `size` (str | None): size string to filter by or None using case-insensitive matching with complete size tokens, including slash-separated sizes. For example, M matches M and S/M, but S does not match to US 9. None skips size filtering.
+        - `max_price` (float | None): maximum price, inclusive or None
+    Returns:
+        - (list[dict]): A list of matching listing dicts with the best match first. Each listing dict has these fields:
+            - id, title, description, category, style_tags (list), size, condition, price (float), colors (list), brand (str or None), platform
+        - When it has nothing: Returns an empty list rather than None or an exception. The planning loop branches on the empty list.
+
+    """
+    return _search_listings_impl(description, size, max_price)
+
 # ──────────────────────────────────────────────────────────────────────────────
 #
 # Two notes on the block above.
