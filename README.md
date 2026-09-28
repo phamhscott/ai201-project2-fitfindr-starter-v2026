@@ -206,6 +206,13 @@ Rock these classic vintage Levi's 501 Jeans for just $38.00 on Depop! Pair them 
 - *What came back:* For each tool it created a command to run each with the relevant parameters. It ran `search_listings` with description, size, and price inputs; ran `suggest_outfit` with both the example and empty wardrobes; and ran `create_fit_card` three times with caching disabled. The outputs showed ranked filtered listings, exact saved wardrobe-item names in the outfit suggestion, general advice for an empty wardrobe, and three different fit-card captions that retained listing details.
 - *What I changed:* I kept the concise search projection so the returned IDs, titles, sizes, and prices were readable instead of printing every field, and kept the uncached three-run fit-card command so variation was tested rather than hidden by the build cache (three runs with same item). After confirming the tests/outputs myself, I pasted the exact commands that it gave me and output into the Sample Run section before wiring the tools together.
 
+**Moment 3**
+
+- *What I asked for:* I asked whether making `suggest_outfit` consistently distinguish the new listing from wardrobe items and label each piece by clothing role would be a useful Unit 4 improvement.
+- *What came back:* AI recommended one prompt change with a fixed line format and a separate comparison of that format in the saved before and new after outputs.
+- *What I changed:* I applied the prompt change in `tools.py::suggest_outfit`, asking for each piece to be labeled `Listing` or `Wardrobe` and assigned a role. I kept the original five acceptance criteria and scenarios unchanged.
+- *How I verified it:* I ran `python run_eval.py --label after` with caching off. The five original criteria remained 5/5, and the supplementary formatting check improved from 0/20 to 19/20 matching-query outputs. One response used `Outerwear` instead of one of the prompt's allowed roles. The initial local model connectivity check failed with `WinError 10051`; the full run later completed with network access.
+
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
      Don't fill these in during unit 3.
@@ -637,19 +644,45 @@ query: water molecules same: True direct_type: list mcp_type: list count: 0
 
 **What I changed:**
 
+I changed only the non-empty-wardrobe prompt in `tools.py::suggest_outfit`. It now asks for each outfit piece on its own line, marked as `Listing` or `Wardrobe`, with a role chosen from Top, Bottom, Layer, Shoes, or Accessories. This responds to the Unit 4 observation that the tool named wardrobe items but varied between role labels, listing labels, and unstructured lists.
+
 **Which failure it was meant to fix:**
+
+No original criterion was missed, so this addresses a coverage gap from the diagnosis rather than a failure that appeared in the baseline scores. Criterion 5 only checked whether at least one wardrobe item name appeared. It did not measure whether the suggestion distinguished the found listing from saved pieces or assigned pieces consistent roles.
 
 ### Run Log — After
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. A matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The selected listing is preserved across the state handoff | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card coincides with the selected listing | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. The outfit suggestion uses the user's wardrobe | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+
+The full uncached after run is preserved in [results/run_2026-09-27_1814_after.md](results/run_2026-09-27_1814_after.md), with machine-readable per-try records in `results/run_after_raw.jsonl`. It used the same five scenarios and five tries per scenario as the before run; caching was off and the evaluation made 40 model calls.
 
 **Did it help, and how do I know:**
+
+Yes, for the output-format gap: I checked all 20 generated outfit suggestions across the four matching-query scenarios. An output passed this supplementary check if it had at least one bullet and every bullet began with `Listing` or `Wardrobe`, followed by one of the five allowed roles. Before the prompt change, 0/20 passed; after it, 19/20 passed. The remaining output labeled a denim jacket as `Outerwear` instead of the allowed `Layer`. All five original criteria stayed at 5/5, so the improvement did not change their verdicts; it made an unmeasured quality more consistent.
+
+Claim: The prompt change produced consistently source-labeled, role-labeled outfit pieces in 19 of 20 matching-query outputs.
+Location: `tools.py::suggest_outfit`.
+Output from a real after run, Try 1 of `matching query completes` in `results/run_2026-09-27_1814_after.md`:
+
+```
+Y2K Streetwear Look
+- Listing — Top: Y2K Baby Tee — Butterfly Print
+- Wardrobe — Bottom: Baggy straight-leg jeans, dark wash
+- Wardrobe — Shoes: Chunky white sneakers
+- Wardrobe — Accessories: Black crossbody bag
+```
+
+The one deviation was Try 4 of the same scenario:
+
+```
+- Wardrobe — Outerwear: Vintage black denim jacket
+```
 
 <!-- If it made things worse, say that. Honestly reported, that earns full
      credit and is more interesting than one that worked. -->
@@ -664,6 +697,7 @@ query: water molecules same: True direct_type: list mcp_type: list count: 0
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
 
+No original criterion was missed in the after run. One of the 20 matching-query outfit suggestions used `Outerwear` instead of one of the five roles allowed by the prompt. The format improved substantially, but the model still does not follow the role list on every try.
 
 
 <!-- ═════════════════════════════════════════════════════════════════════

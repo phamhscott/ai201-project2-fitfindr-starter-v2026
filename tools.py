@@ -245,9 +245,17 @@ User's saved wardrobe:
 {_format_wardrobe(wardrobe_items)}
 
 Suggest one or two outfits that combine the new listing with pieces from the
-saved wardrobe. Use the complete, exact saved name of at least one wardrobe
-item so the user can identify it. Do not invent pieces the user owns. Keep the
-answer concise and return only the outfit suggestion."""
+saved wardrobe. Include the new listing and at least one saved wardrobe item
+in each outfit. Use the complete, exact saved name of every wardrobe item so
+the user can identify it. Do not invent pieces the user owns.
+
+Format every outfit the same way: give it a short title, then put each clothing
+piece on its own bullet line using exactly one of these forms:
+- Listing — [role]: [exact new listing title]
+- Wardrobe — [role]: [complete exact saved wardrobe item name]
+
+Choose one role for each piece: Top, Bottom, Layer, Shoes, or Accessories.
+Return only the formatted outfit suggestion."""
     else:
         prompt = f"""New thrift listing:
 {listing_text}
