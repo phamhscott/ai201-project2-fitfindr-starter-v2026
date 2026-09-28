@@ -29,13 +29,15 @@ import config
 
 _lines: list[str] = []
 _step_number = 0
+_enabled = False
 
 
-def start_trace() -> None:
-    """Clear the trace. Call this at the start of each run."""
-    global _step_number
+def start_trace(enabled: bool = True) -> None:
+    """Clear the trace and choose whether this run prints steps."""
+    global _step_number, _enabled
     _lines.clear()
     _step_number = 0
+    _enabled = enabled
 
 
 def step(name: str, inputs=None, returned=None, note: str = "") -> None:
@@ -50,11 +52,13 @@ def step(name: str, inputs=None, returned=None, note: str = "") -> None:
         note:     an optional word on why, e.g. "branch: empty, stopping".
     """
     global _step_number
+    if not _enabled:
+        return
     _step_number += 1
 
     line = f"[{_step_number}] {name}"
     if inputs is not None:
-        line += f"\n      in:  {_short(inputs)}"
+        line += f"\n      in:  {_short(inputs, limit=350)}"
     if returned is not None:
         line += f"\n      out: {_short(returned)}"
     if note:
@@ -76,7 +80,9 @@ def _short(value, limit: int = 110) -> str:
             return "[] (empty)"
         head = value[0]
         if isinstance(head, dict) and "title" in head:
-            titles = ", ".join(str(v.get("title", "?")) for v in value[:3])
+            titles = ", ".join(
+                f"{v.get('id', '?')} {v.get('title', '?')}" for v in value[:3]
+            )
             more = f" … +{len(value) - 3} more" if len(value) > 3 else ""
             return f"{len(value)} items: {titles}{more}"
         return f"{len(value)} items: {str(head)[:60]}…"

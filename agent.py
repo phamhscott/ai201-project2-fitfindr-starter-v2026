@@ -150,6 +150,15 @@ def run_agent(query: str, wardrobe: dict) -> dict:
 
         if next_step == "parse_query":
             session["parsed"] = _parse_query(session["query"])
+            parsed = session["parsed"]
+            trace.step(
+                "parse_query",
+                inputs=f"query={session['query']!r}",
+                returned=(
+                    f"description={parsed['description']!r}, size={parsed['size']!r}, "
+                    f"max_price={parsed['max_price']!r}"
+                ),
+            )
             next_step = "search_listings"
             continue
 
@@ -167,15 +176,24 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 "size": parsed["size"],
                 "max_price": parsed["max_price"],
             })
-
-            if not session["search_results"]:
+            results = session["search_results"]
+            trace.step(
+                "search_listings (via MCP)",
+                inputs=(
+                    f"description={parsed['description']!r}, size={parsed['size']!r}, "
+                    f"max_price={parsed['max_price']!r}"
+                ),
+                returned=results,
+                note="branch: empty, stopping" if not results else "",
+            )
+            if not results:
                 session["error"] = (
                     "No matching listings were found. Try a broader description, "
                     "another size, or a higher price limit."
                 )
                 return session
 
-            session["selected_item"] = session["search_results"][0]
+            session["selected_item"] = results[0]
             next_step = "suggest_outfit"
             continue
 
@@ -184,6 +202,17 @@ def run_agent(query: str, wardrobe: dict) -> dict:
                 session["selected_item"],
                 session["wardrobe"],
             )
+            item = session["selected_item"]
+            wardrobe_items = session["wardrobe"].get("items", [])
+            names = ", ".join(piece["name"] for piece in wardrobe_items) or "(none)"
+            trace.step(
+                "suggest_outfit",
+                inputs=(
+                    f"item_id={item['id']}, title={item['title']!r}, "
+                    f"wardrobe_count={len(wardrobe_items)}, wardrobe_names={names}"
+                ),
+                returned=session["outfit_suggestion"],
+            )
             next_step = "create_fit_card"
             continue
 
@@ -191,6 +220,14 @@ def run_agent(query: str, wardrobe: dict) -> dict:
             session["fit_card"] = create_fit_card(
                 session["outfit_suggestion"],
                 session["selected_item"],
+            )
+            trace.step(
+                "create_fit_card",
+                inputs=(
+                    f"item_id={session['selected_item']['id']}, "
+                    f"outfit={session['outfit_suggestion'][:80]!r}"
+                ),
+                returned=session["fit_card"],
             )
             next_step = "done"
             continue

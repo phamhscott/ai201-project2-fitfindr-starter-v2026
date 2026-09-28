@@ -108,8 +108,7 @@ def _ask_one(query, wardrobe, use_trace):
     from agent import run_agent
     import trace as trace_module
 
-    if use_trace:
-        trace_module.start_trace()
+    trace_module.start_trace(enabled=use_trace)
 
     session = run_agent(query, wardrobe)
 
