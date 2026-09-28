@@ -29,7 +29,10 @@ mode — caching is what usually explains it.
 """
 
 import argparse
+import contextlib
 import datetime as dt
+import io
+import json
 import sys
 import traceback
 
@@ -51,11 +54,14 @@ def run_once(scenario, use_trace=True):
         trace_module.start_trace()
 
     record = {"error": None, "session": None, "trace": "", "crashed": None}
+    console = io.StringIO()
     try:
-        record["session"] = run_agent(scenario["query"], wardrobe)
+        with contextlib.redirect_stdout(console):
+            record["session"] = run_agent(scenario["query"], wardrobe)
     except Exception as exc:  # noqa: BLE001 — a crash is a result worth logging
         record["crashed"] = f"{type(exc).__name__}: {exc}"
         record["traceback"] = traceback.format_exc()
+    record["console"] = console.getvalue()
 
     if use_trace:
         record["trace"] = trace_module.get_trace()
@@ -68,6 +74,8 @@ def main():
     parser.add_argument("--tries", "--trials", type=int, default=5, dest="tries",
                         help="tries per scenario (default 5, matching your criteria)")
     parser.add_argument("--label", default="", help="a name for this run, e.g. 'before'")
+    parser.add_argument("--resume", action="store_true",
+                        help="continue an interrupted run from its saved raw tries")
     args = parser.parse_args()
 
     problems = scenario_module.validate()
@@ -88,14 +96,42 @@ def main():
     config.CACHE_ENABLED = False
     print("Cache is OFF for this run — that's deliberate.\n")
 
+    config.RESULTS_DIR.mkdir(exist_ok=True)
+    raw_path = config.RESULTS_DIR / f"run_{args.label or 'unlabeled'}_raw.jsonl"
+    meta = {"label": args.label, "tries": args.tries,
+            "scenarios": scenario_module.SCENARIOS}
+    saved = {}
+    if args.resume:
+        if not raw_path.exists():
+            sys.exit(f"No raw run to resume: {raw_path}")
+        entries = [json.loads(line) for line in raw_path.read_text(encoding="utf-8").splitlines()]
+        if not entries or entries[0].get("meta") != meta:
+            sys.exit("The saved run does not match these scenarios and try count.")
+        saved = {(entry["scenario_index"], entry["attempt"]): entry["record"]
+                 for entry in entries[1:]}
+        print(f"Resuming {raw_path.relative_to(config.ROOT)} with {len(saved)} saved tries.\n")
+    else:
+        if raw_path.exists():
+            sys.exit(f"Raw run already exists: {raw_path}. Use --resume or a new label.")
+        raw_path.write_text(json.dumps({"meta": meta}, ensure_ascii=False) + "\n",
+                            encoding="utf-8")
+
     rows = []
-    for scenario in scenario_module.SCENARIOS:
+    for scenario_index, scenario in enumerate(scenario_module.SCENARIOS):
         print(f"{scenario['name']}  ({scenario['wardrobe']} wardrobe)")
         print(f"  query: {scenario['query']}")
 
         tries = []
         for attempt in range(1, args.tries + 1):
-            record = run_once(scenario)
+            key = (scenario_index, attempt)
+            if key in saved:
+                record = saved[key]
+            else:
+                record = run_once(scenario)
+                entry = {"scenario_index": scenario_index, "attempt": attempt,
+                         "record": record}
+                with raw_path.open("a", encoding="utf-8") as raw_file:
+                    raw_file.write(json.dumps(entry, ensure_ascii=False) + "\n")
             tries.append(record)
 
             if record["crashed"]:
@@ -111,10 +147,10 @@ def main():
         rows.append({"scenario": scenario, "tries": tries})
         print()
 
-    write_report(rows, args)
+    write_report(rows, args, raw_path)
 
 
-def write_report(rows, args):
+def write_report(rows, args, raw_path):
     config.RESULTS_DIR.mkdir(exist_ok=True)
     stamp = dt.datetime.now().strftime("%Y-%m-%d_%H%M")
     label = f"_{args.label}" if args.label else ""
@@ -128,6 +164,7 @@ def write_report(rows, args):
         f"# Run log{f' — {args.label}' if args.label else ''}",
         "",
         "- Produced by: `run_eval.py::main`",
+        f"- Raw tries: `{raw_path.relative_to(config.ROOT)}`",
         "- Loop: `agent.py::run_agent` · tools: `tools.py`",
         f"- Tries per scenario: {n}, caching off",
         f"- Temperature: {config.TEMPERATURE}",
