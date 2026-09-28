@@ -287,20 +287,108 @@ that produced it:
 
 **Happy path**
 
-```
+Claim: A matching query calls search through MCP, then passes the selected listing to both model tools.
+Location: `agent.py::run_agent`.
+Output from a real run (the two model answers were served from cache):
 
+```
+$ .venv\Scripts\python.exe app.py ask 'knit cardigan, under $40' --trace
+[1] parse_query
+      in:  query='knit cardigan, under $40'
+      out: description='knit cardigan', size=None, max_price=40.0
+[2] search_listings (via MCP)
+      in:  description='knit cardigan', size=None, max_price=40.0
+      out: 2 items: lst_008 Knit Cardigan — Chunky Brown, lst_030 Vintage Knit Vest — Argyle Brown/Cream
+[3] suggest_outfit
+      in:  item_id=lst_008, title='Knit Cardigan — Chunky Brown', wardrobe_count=10, wardrobe_names=Baggy straight-leg jeans, dark wash, Wide-leg khaki trousers, White ribbed tank top, Oversized grey crewneck sweatshirt, Black cropped zip hoodie, Vintage black denim jacket, Chunky white sneakers, Black combat boots, Brown leather belt, Black crossbody bag
+      out: **Outfit 1: Cozy Earth-Tone Layer** - **Top:** Knit Cardigan — Chunky Brown (over the White ribbed tank top) -…
+[4] create_fit_card
+      in:  item_id=lst_008, outfit='**Outfit 1: Cozy Earth-Tone Layer**\n- **Top:** Knit Cardigan — Chunky Brown (ove'
+      out: Wrap yourself in ultimate comfort with this chunky brown knit cardigan, priced at just $35.00 exclusively on d…
+
+  Found:    Knit Cardigan — Chunky Brown — $35.0 on depop
+
+  Outfit:   **Outfit 1: Cozy Earth-Tone Layer**
+- **Top:** Knit Cardigan — Chunky Brown (over the White ribbed tank top)
+- **Bottoms:** Wide-leg khaki trousers
+- **Accessories:** Brown leather belt
+
+**Outfit 2: Casual Streetwear Contrast**
+- **Top:** Knit Cardigan — Chunky Brown (over the White ribbed tank top)
+- **Bottoms:** Baggy straight-leg jeans, dark wash
+- **Shoes:** Chunky white sneakers
+- **Accessories:** Black crossbody bag
+
+  Fit card: Wrap yourself in ultimate comfort with this chunky brown knit cardigan, priced at just $35.00 exclusively on depop. This cozy oversized piece channels the best of cottagecore styling when paired with wide-leg khaki trousers and a brown leather belt. It is the ultimate layering staple for effortless earth tones day in and day out.
+
+0 model calls this session, 2 served from cache
 ```
 
 **Empty search**
 
-```
+Claim: An empty MCP search stops the loop before either model tool.
+Location: `agent.py::run_agent`.
+Output from a real run:
 
 ```
+$ .venv\Scripts\python.exe app.py ask 'water molecules' --trace
+[1] parse_query
+      in:  query='water molecules'
+      out: description='water molecules', size=None, max_price=None
+[2] search_listings (via MCP)
+      in:  description='water molecules', size=None, max_price=None
+      out: [] (empty)
+      →    branch: empty, stopping
 
-**On the MCP move:** <!-- what changed in your code, and whether anything
-behaved differently afterwards. If the rewire didn't work, say exactly where it
-broke — the error text and the last thing that worked. That earns the point in
-full. -->
+  No matching listings were found. Try a broader description, another size, or a higher price limit.
+
+0 model calls this session
+```
+
+**Empty wardrobe**
+
+Claim: With no saved wardrobe items, the agent returns general styling advice and completes the fit card.
+Location: `tools.py::suggest_outfit` and `agent.py::run_agent`.
+Output from a real run (the model answers were served from cache):
+
+```
+$ .venv\Scripts\python.exe app.py ask 'denim jacket' --empty-wardrobe
+(running with an empty wardrobe)
+
+  Found:    Denim Jacket — Light Wash, Cropped — $42.0 on poshmark
+
+  Outfit:   - **Streetwear Casual:** Pair with an oversized graphic tee, high-waisted black cargo pants, and chunky white sneakers. Accessorize with a minimalist silver chain necklace and a black canvas crossbody bag.
+- **Classic Vintage:** Layer over a ribbed white crop top paired with a floral midi skirt and retro canvas low-top sneakers. Complete the look with a leather shoulder bag and dainty hoop earrings.
+
+  Fit card: Score this vintage Wrangler light wash denim jacket for just $42.00 on Poshmark! It’s the ultimate classic staple ready for your wardrobe. Pair it with an oversized graphic tee, cargo pants, and chunky sneakers for an effortlessly cool streetwear casual vibe.
+
+0 model calls this session, 2 served from cache
+```
+
+**Model unavailable**
+
+Claim: A rejected model key produces a message telling the user what to check.
+Location: `generate.py::_explain` and `app.py::main`.
+Output Scott supplied from the intentional bad-key run; this documentation change did not repeat the key alteration:
+
+```
+$ python.exe app.py ask 'denim jacket'
+1 model calls this session
+
+ModelUnavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
+```
+
+**On the MCP move:** `mcp_server.py::search_listings` now exposes the existing search implementation as one MCP tool. `agent.py::run_agent` calls it through `mcp_client.py::call_tool`. The direct and MCP calls returned the same list for a matching search and the same empty list for an impossible search, so this check found no change in search results.
+
+Claim: The MCP call preserves the direct tool's returned list for both cases.
+Location: `mcp_server.py::search_listings`, `mcp_client.py::call_tool`, and `tools.py::search_listings`.
+Output from a real direct-versus-MCP comparison:
+
+```
+$ .venv\Scripts\python.exe -c "from tools import search_listings; from mcp_client import call_tool; cases=[dict(description='graphic tee',size='L',max_price=30.0),dict(description='water molecules',size=None,max_price=None)]; [(lambda direct,mcp: print('query:',c['description'],'same:',direct==mcp,'direct_type:',type(direct).__name__,'mcp_type:',type(mcp).__name__,'count:',len(mcp)))(search_listings(**c),call_tool('search_listings',c)) for c in cases]"
+query: graphic tee same: True direct_type: list mcp_type: list count: 3
+query: water molecules same: True direct_type: list mcp_type: list count: 0
+```
 
 
 
