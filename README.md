@@ -206,12 +206,6 @@ Rock these classic vintage Levi's 501 Jeans for just $38.00 on Depop! Pair them 
 - *What came back:* For each tool it created a command to run each with the relevant parameters. It ran `search_listings` with description, size, and price inputs; ran `suggest_outfit` with both the example and empty wardrobes; and ran `create_fit_card` three times with caching disabled. The outputs showed ranked filtered listings, exact saved wardrobe-item names in the outfit suggestion, general advice for an empty wardrobe, and three different fit-card captions that retained listing details.
 - *What I changed:* I kept the concise search projection so the returned IDs, titles, sizes, and prices were readable instead of printing every field, and kept the uncached three-run fit-card command so variation was tested rather than hidden by the build cache (three runs with same item). After confirming the tests/outputs myself, I pasted the exact commands that it gave me and output into the Sample Run section before wiring the tools together.
 
-**Moment 3**
-
-- *What I asked for:* I asked whether making `suggest_outfit` consistently distinguish the new listing from wardrobe items and label each piece by clothing role would be a useful Unit 4 improvement.
-- *What came back:* AI recommended one prompt change with a fixed line format and a separate comparison of that format in the saved before and new after outputs.
-- *What I changed:* I applied the prompt change in `tools.py::suggest_outfit`, asking for each piece to be labeled `Listing` or `Wardrobe` and assigned a role. I kept the original five acceptance criteria and scenarios unchanged.
-- *How I verified it:* I ran `python run_eval.py --label after` with caching off. The five original criteria remained 5/5, and the supplementary formatting check improved from 0/20 to 19/20 matching-query outputs. One response used `Outerwear` instead of one of the prompt's allowed roles. The initial local model connectivity check failed with `WinError 10051`; the full run later completed with network access.
 
 <!-- ═══════════════════════ UNIT 4 — THE TEST ═══════════════════════
 
@@ -619,7 +613,7 @@ $ python.exe app.py ask 'denim jacket'
 ModelUnavailable: The model rejected your API key. Check GEMINI_API_KEY in your .env file, or create a fresh key at aistudio.google.com.
 ```
 
-**On the MCP move:** `mcp_server.py::search_listings` now exposes the existing search implementation as one MCP tool. `agent.py::run_agent` calls it through `mcp_client.py::call_tool`. The direct and MCP calls returned the same list for a matching search and the same empty list for an impossible search, so this check found no change in search results.
+**On the MCP move:** `mcp_server.py::search_listings` now exposes the existing search implementation as one MCP tool, and `agent.py::run_agent` calls it through `mcp_client.py::call_tool` instead of calling the tool directly. The transport path changed, but normal search behavior appeared unchanged: direct and MCP calls returned the same list for a matching search and the same empty list for an impossible search.
 
 Claim: The MCP call preserves the direct tool's returned list for both cases.
 Location: `mcp_server.py::search_listings`, `mcp_client.py::call_tool`, and `tools.py::search_listings`.
@@ -644,7 +638,7 @@ query: water molecules same: True direct_type: list mcp_type: list count: 0
 
 **What I changed:**
 
-I changed only the non-empty-wardrobe prompt in `tools.py::suggest_outfit`. It now asks for each outfit piece on its own line, marked as `Listing` or `Wardrobe`, with a role chosen from Top, Bottom, Layer, Shoes, or Accessories. This responds to the Unit 4 observation that the tool named wardrobe items but varied between role labels, listing labels, and unstructured lists.
+I changed only the non-empty-wardrobe prompt in `tools.py::suggest_outfit` (which also is the input for the fit card tool). It now asks for each outfit piece on its own line, marked as `Listing` or `Wardrobe`, with a role chosen from Top, Bottom, Layer, Shoes, or Accessories. This responds to the Unit 4 observation that the tool named wardrobe items but varied between role labels, listing labels, and unstructured lists.
 
 **Which failure it was meant to fix:**
 
@@ -662,9 +656,9 @@ No original criterion was missed, so this addresses a coverage gap from the diag
 
 The full uncached after run is preserved in [results/run_2026-09-27_1814_after.md](results/run_2026-09-27_1814_after.md), with machine-readable per-try records in `results/run_after_raw.jsonl`. It used the same five scenarios and five tries per scenario as the before run; caching was off and the evaluation made 40 model calls.
 
-**Did it help, and how do I know:**
+**Did it help?**
 
-Yes, for the output-format gap: I checked all 20 generated outfit suggestions across the four matching-query scenarios. An output passed this supplementary check if it had at least one bullet and every bullet began with `Listing` or `Wardrobe`, followed by one of the five allowed roles. Before the prompt change, 0/20 passed; after it, 19/20 passed. The remaining output labeled a denim jacket as `Outerwear` instead of the allowed `Layer`. All five original criteria stayed at 5/5, so the improvement did not change their verdicts; it made an unmeasured quality more consistent.
+Yes, for the output-format gap, I checked all 20 generated outfit suggestions across the four matching-query scenarios. An output passed this supplementary check if it had at least one bullet and every bullet began with `Listing` or `Wardrobe`, followed by one of the five allowed roles. Before the prompt change, 0/20 passed, after it, 19/20 passed. The remaining output labeled a denim jacket as `Outerwear` instead of the allowed `Layer`. All five original criteria stayed at 5/5, so the improvement did not change their verdicts and made an unmeasured quality more consistent.
 
 Claim: The prompt change produced consistently source-labeled, role-labeled outfit pieces in 19 of 20 matching-query outputs.
 Location: `tools.py::suggest_outfit`.
@@ -697,7 +691,34 @@ The one deviation was Try 4 of the same scenario:
      you did. "I ran out of time" is fine if it's true. Pretending nothing is
      left is not. -->
 
-No original criterion was missed in the after run. One of the 20 matching-query outfit suggestions used `Outerwear` instead of one of the five roles allowed by the prompt. The format improved substantially, but the model still does not follow the role list on every try.
+No original criterion was missed in the after run, but the criteria did not test every useful behavior. The prompt-format change improved the supplemental check from 0/20 to 19/20 (one suggestion still called a jacket `Outerwear` instead of using one of the allowed roles). A more reliable next step would be to represent each outfit piece with structured fields for its source and role, then validate those fields against an allowed set before formatting the answer. A tool could help classify or validate pieces, but I did not add one here because this milestone called for measuring a single improvement.
+
+The fit-card criterion repeated the same cardigan five times, so it did not show whether cards use tags that are specific to different listings. I would add several listings with different style tags and check that each card reflects its own item's tags. The query tests also use a narrow set of price phrases (the regex parser recognizes forms such as `under`, `below`, `up to`, and `max`, so a natural phrasing such as `at most $50` is not covered). I would add equivalent phrasings and check that they produce the same price ceiling or perhaps even a hybrid model/regex approach to accomodate for even more human-centered language. Finally, the current tests do not examine how the agent should choose when several listings are similarly plausible, the current loop simply selects the first result, and so a further improvement could add all possible listings and have the user select (or somehow make a more informed selection).
+
+
+## How I Used AI
+
+
+**Moment 1**
+
+- *What I asked for:* I showed AI my existing `trace.step()` calls and asked how to make the inputs and returned values more informative in the printed trace. Some inputs were summarized as dictionary keys, and long values were cut off. I also questioned whether the `--trace` flag was really preventing trace output when it was off.
+- *What came back:* AI suggested passing readable strings with the important values, including the selected item ID and wardrobe names. It increased the input preview limit to 350 characters. The returned-value preview still uses the default 110-character limit, so long model outputs can remain abbreviated in the trace. We also traced the flag through the CLI and found it needed to control whether trace collection and printing were enabled.
+- *What I changed:* I kept the more explicit trace inputs and checked that `app.py::_ask_one` passes the flag to `trace.start_trace(enabled=use_trace)` and that `trace.py::step` returns without printing when tracing is disabled. I questioned the flag behavior rather than assuming the first change was correct.
+- *How I verified it:* The real `--trace` output in the Loop Trace section shows the steps in order, including `search_listings (via MCP)`, the selected item ID, and the outfit tool's inputs. The flag behavior is also visible in `app.py::_ask_one` and `trace.py::step`.
+
+**Moment 2**
+
+- *What I asked for:* After an evaluation run was interrupted, I asked AI how to avoid losing completed tries and having to repeat them.
+- *What came back:* AI helped add a checkpoint after each try to the raw JSONL results and a `--resume` option that loads completed tries only when the saved run metadata matches the current label, scenarios, and try count.
+- *What I changed:* I used the checkpoint-and-resume behavior in `run_eval.py` so an interrupted evaluation can continue with the missing tries while preserving the results already collected.
+- *How I verified it:* The completed baseline has 25 per-try records in `results/run_before_raw.jsonl` and a full five-try-per-scenario report in `results/run_2026-09-27_1729_before.md`. The resume validation and skip logic are in `run_eval.py::main`.
+
+**Moment 3**
+
+- *What I asked for:* I asked whether making `suggest_outfit` consistently distinguish the new listing from wardrobe items and label each piece by clothing role would be a useful Unit 4 improvement.
+- *What came back:* AI recommended one prompt change with a fixed line format and a separate comparison of that format in the saved before and new after outputs.
+- *What I changed:* I applied the prompt change in `tools.py::suggest_outfit`, asking for each piece to be labeled `Listing` or `Wardrobe` and assigned a role. I kept the original five acceptance criteria and scenarios unchanged.
+- *How I verified it:* I ran `python run_eval.py --label after` with caching off. The five original criteria remained 5/5, and the supplementary formatting check improved from 0/20 to 19/20 matching-query outputs. One response used `Outerwear` instead of one of the prompt's allowed roles.
 
 
 <!-- ═════════════════════════════════════════════════════════════════════
