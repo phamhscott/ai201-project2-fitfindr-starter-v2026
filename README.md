@@ -226,17 +226,245 @@ Rock these classic vintage Levi's 501 Jeans for just $38.00 on Depop! Pair them 
 
 | Criterion | Target | Try 1 | Try 2 | Try 3 | Try 4 | Try 5 | Verdict |
 |---|---|---|---|---|---|---|---|
-| 1.  |  |  |  |  |  |  |  |
-| 2.  |  |  |  |  |  |  |  |
-| 3.  |  |  |  |  |  |  |  |
-| 4.  |  |  |  |  |  |  |  |
-| 5.  |  |  |  |  |  |  |  |
+| 1. A matching query completes all three tools | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 2. An impossible query stops before the second tool | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 3. The selected listing is preserved across the state handoff | 5 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 4. Fit card coincides with the selected listing | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
+| 5. The outfit suggestion uses the user's wardrobe | 4 of 5 | PASS | PASS | PASS | PASS | PASS | MET (5/5) |
 
-**Real output from one try**, pasted as text, naming the file and function
-that produced it:
+The full uncached run is preserved in `results/run_2026-09-27_1729_before.md`, with machine-readable per-try records in `results/run_before_raw.jsonl`.
+
+**Criterion 1: matching query completes**
+
+Claim: Try 1 completed the three tool calls and returned a fit card.
+Location: `agent.py::run_agent`.
+Output: Exact Try 1 excerpt from `results/run_2026-09-27_1729_before.md`:
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Y2K Baby Tee — Butterfly Print ($18.0, depop)
+- search_results: 10
+
+Outfit suggestion:
 
 ```
+**Outfit 1:**
+- Y2K Baby Tee — Butterfly Print
+- Baggy straight-leg jeans, dark wash
+- Chunky white sneakers
+- Black crossbody bag
 
+**Outfit 2:**
+- Y2K Baby Tee — Butterfly Print
+- Wide-leg khaki trousers
+- Vintage black denim jacket
+- Black combat boots
+```
+
+Fit card:
+
+```
+Embrace the ultimate nostalgia with this Y2K Baby Tee featuring a charming butterfly print, available now for $18.00 on depop. Style it with baggy dark-wash jeans and chunky sneakers for an effortless off-duty look that nails the graphic tee trend. Grab this vintage gem before it's gone!
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  query='vintage graphic tee under $30'
+      out: description='vintage graphic tee', size=None, max_price=30.0
+[2] search_listings (via MCP)
+      in:  description='vintage graphic tee', size=None, max_price=30.0
+      out: 10 items: lst_002 Y2K Baby Tee — Butterfly Print, lst_006 Graphic Tee — 2003 Tour Bootleg Style, lst_033 Vintage Band Tee — Faded Grey … +7 more
+[3] suggest_outfit
+      in:  item_id=lst_002, title='Y2K Baby Tee — Butterfly Print', wardrobe_count=10, wardrobe_names=Baggy straight-leg jeans, dark wash, Wide-leg khaki trousers, White ribbed tank top, Oversized grey crewneck sweatshirt, Black cropped zip hoodie, Vintage black denim jacket, Chunky white sneakers, Black combat boots, Brown leather belt, Black crossbody bag
+      out: **Outfit 1:** - Y2K Baby Tee — Butterfly Print - Baggy straight-leg jeans, dark wash - Chunky white sneakers -…
+[4] create_fit_card
+      in:  item_id=lst_002, outfit='**Outfit 1:**\n- Y2K Baby Tee — Butterfly Print\n- Baggy straight-leg jeans, dark '
+      out: Embrace the ultimate nostalgia with this Y2K Baby Tee featuring a charming butterfly print, available now for …
+```
+
+**Criterion 2: impossible query stops early**
+
+Claim: Try 1 stopped after the empty MCP search and did not call the model tools.
+Location: `agent.py::run_agent`.
+Output: Exact Try 1 excerpt from `results/run_2026-09-27_1729_before.md`:
+
+**Try 1**
+
+- stopped early: yes — No matching listings were found. Try a broader description, another size, or a higher price limit.
+- selected_item: (none)
+- search_results: 0
+
+Trace:
+
+```
+[1] parse_query
+      in:  query='designer ballgown size XXS under $5'
+      out: description='designer ballgown', size='XXS', max_price=5.0
+[2] search_listings (via MCP)
+      in:  description='designer ballgown', size='XXS', max_price=5.0
+      out: [] (empty)
+      →    branch: empty, stopping
+```
+
+**Criterion 3: selected listing survives state handoff**
+
+Claim: Try 1 passed listing ID lst_007 from the first search result into suggest_outfit.
+Location: `agent.py::run_agent`.
+Output: Exact Try 1 excerpt from `results/run_2026-09-27_1729_before.md`:
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Denim Jacket — Light Wash, Cropped ($42.0, poshmark)
+- search_results: 7
+
+Outfit suggestion:
+
+```
+**Outfit 1: Double Denim Streetwear**
+- Listing: Denim Jacket — Light Wash, Cropped
+- Wardrobe: Baggy straight-leg jeans, dark wash
+- Wardrobe: White ribbed tank top
+- Wardrobe: Chunky white sneakers
+- Wardrobe: Black crossbody bag
+
+**Outfit 2: Contrast Neutral Minimal**
+- Listing: Denim Jacket — Light Wash, Cropped
+- Wardrobe: Wide-leg khaki trousers
+- Wardrobe: White ribbed tank top
+- Wardrobe: Brown leather belt
+- Wardrobe: Black combat boots
+```
+
+Fit card:
+
+```
+Upgrade your layering game with this vintage-inspired Wrangler cropped denim jacket, listed now on Poshmark for $42.00. This light wash essential brings serious classic streetwear energy when styled with baggy dark-wash jeans, a crisp white tank, and chunky sneakers. It’s the ultimate blank canvas ready for your personal touch.
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  query='denim jacket under $50'
+      out: description='denim jacket', size=None, max_price=50.0
+[2] search_listings (via MCP)
+      in:  description='denim jacket', size=None, max_price=50.0
+      out: 7 items: lst_007 Denim Jacket — Light Wash, Cropped, lst_001 Vintage Levi's 501 Jeans — Medium Wash, lst_004 90s Track Jacket — Navy/White Stripe … +4 more
+[3] suggest_outfit
+      in:  item_id=lst_007, title='Denim Jacket — Light Wash, Cropped', wardrobe_count=10, wardrobe_names=Baggy straight-leg jeans, dark wash, Wide-leg khaki trousers, White ribbed tank top, Oversized grey crewneck sweatshirt, Black cropped zip hoodie, Vintage black denim jacket, Chunky white sneakers, Black combat boots, Brown leather belt, Black crossbody b…
+      out: **Outfit 1: Double Denim Streetwear** - Listing: Denim Jacket — Light Wash, Cropped - Wardrobe: Baggy straight…
+[4] create_fit_card
+      in:  item_id=lst_007, outfit='**Outfit 1: Double Denim Streetwear**\n- Listing: Denim Jacket — Light Wash, Crop'
+      out: Upgrade your layering game with this vintage-inspired Wrangler cropped denim jacket, listed now on Poshmark fo…
+```
+
+**Criterion 4: fit card matches selected listing**
+
+Claim: Try 1 returned a fit card containing the selected listing's platform and style words.
+Location: `tools.py::create_fit_card`.
+Output: Exact Try 1 excerpt from `results/run_2026-09-27_1729_before.md`:
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Knit Cardigan — Chunky Brown ($35.0, depop)
+- search_results: 2
+
+Outfit suggestion:
+
+```
+Outfit 1:
+- Knit Cardigan — Chunky Brown
+- White ribbed tank top
+- Wide-leg khaki trousers
+- Chunky white sneakers
+- Black crossbody bag
+
+Outfit 2:
+- Knit Cardigan — Chunky Brown
+- Baggy straight-leg jeans, dark wash
+- Brown leather belt
+- Black combat boots
+```
+
+Fit card:
+
+```
+Wrap yourself in ultimate comfort with this chunky brown knit cardigan, priced at just $35.00 exclusively on Depop. It’s the ultimate layering piece for channeling that cozy earth tones aesthetic whether you're pairing it with wide-leg trousers or dark wash denim.
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  query='knit cardigan under $40'
+      out: description='knit cardigan', size=None, max_price=40.0
+[2] search_listings (via MCP)
+      in:  description='knit cardigan', size=None, max_price=40.0
+      out: 2 items: lst_008 Knit Cardigan — Chunky Brown, lst_030 Vintage Knit Vest — Argyle Brown/Cream
+[3] suggest_outfit
+      in:  item_id=lst_008, title='Knit Cardigan — Chunky Brown', wardrobe_count=10, wardrobe_names=Baggy straight-leg jeans, dark wash, Wide-leg khaki trousers, White ribbed tank top, Oversized grey crewneck sweatshirt, Black cropped zip hoodie, Vintage black denim jacket, Chunky white sneakers, Black combat boots, Brown leather belt, Black crossbody bag
+      out: Outfit 1: - Knit Cardigan — Chunky Brown - White ribbed tank top - Wide-leg khaki trousers - Chunky white snea…
+[4] create_fit_card
+      in:  item_id=lst_008, outfit='Outfit 1:\n- Knit Cardigan — Chunky Brown\n- White ribbed tank top\n- Wide-leg khak'
+      out: Wrap yourself in ultimate comfort with this chunky brown knit cardigan, priced at just $35.00 exclusively on D…
+```
+
+**Criterion 5: outfit uses saved wardrobe**
+
+Claim: Try 1's outfit named saved wardrobe pieces.
+Location: `tools.py::suggest_outfit`.
+Output: Exact Try 1 excerpt from `results/run_2026-09-27_1729_before.md`:
+
+**Try 1**
+
+- stopped early: no
+- selected_item: Denim Jacket — Light Wash, Cropped ($42.0, poshmark)
+- search_results: 7
+
+Outfit suggestion:
+
+```
+**Outfit 1: Double Denim Streetwear**
+- Listing: Denim Jacket — Light Wash, Cropped
+- Wardrobe: Baggy straight-leg jeans, dark wash
+- Wardrobe: White ribbed tank top
+- Wardrobe: Chunky white sneakers
+- Wardrobe: Black crossbody bag
+
+**Outfit 2: High-Contrast Casual**
+- Listing: Denim Jacket — Light Wash, Cropped
+- Wardrobe: Wide-leg khaki trousers
+- Wardrobe: White ribbed tank top
+- Wardrobe: Black combat boots
+- Wardrobe: Brown leather belt
+```
+
+Fit card:
+
+```
+Level up your streetwear rotation with this classic Wrangler light wash denim jacket, available now for $42.00 on Poshmark. Style it with baggy dark wash jeans and chunky sneakers for an effortless double-denim look, or pair it with wide-leg trousers and combat boots for high-contrast casual energy.
+```
+
+Trace:
+
+```
+[1] parse_query
+      in:  query='denim jacket under $50'
+      out: description='denim jacket', size=None, max_price=50.0
+[2] search_listings (via MCP)
+      in:  description='denim jacket', size=None, max_price=50.0
+      out: 7 items: lst_007 Denim Jacket — Light Wash, Cropped, lst_001 Vintage Levi's 501 Jeans — Medium Wash, lst_004 90s Track Jacket — Navy/White Stripe … +4 more
+[3] suggest_outfit
+      in:  item_id=lst_007, title='Denim Jacket — Light Wash, Cropped', wardrobe_count=10, wardrobe_names=Baggy straight-leg jeans, dark wash, Wide-leg khaki trousers, White ribbed tank top, Oversized grey crewneck sweatshirt, Black cropped zip hoodie, Vintage black denim jacket, Chunky white sneakers, Black combat boots, Brown leather belt, Black crossbody b…
+      out: **Outfit 1: Double Denim Streetwear** - Listing: Denim Jacket — Light Wash, Cropped - Wardrobe: Baggy straight…
+[4] create_fit_card
+      in:  item_id=lst_007, outfit='**Outfit 1: Double Denim Streetwear**\n- Listing: Denim Jacket — Light Wash, Crop'
+      out: Level up your streetwear rotation with this classic Wrangler light wash denim jacket, available now for $42.00…
 ```
 
 ---
