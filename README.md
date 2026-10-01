@@ -506,7 +506,7 @@ Criterion 4 is the one I would make more demanding in a future evaluation. All f
 
 Since every try passed, I think Criterion 4's 4-of-5 target was too permissive for item-specific fit cards. For a future test, I would tighten it to: “For five different listings selected to have distinct style tags, each fit card mentions that listing's platform and at least one complete style-tag phrase from that same listing in 5 of 5 tries.” This is a proposed tighter target for a later evaluation, not a revision to the committed criterion or a change to the verdict above. Since we already propose that the fit card should label at least 1 of these style tags in its prompt, I think this is a reasonable target to make more strict.
 
-Criterion 5 only checked whether the suggestion named a saved wardrobe item. It did not check whether the suggestion assigned pieces clear roles, such as top or bottom, or whether the output followed a consistent layout. The five suggestions passed the written criterion even though their formatting varied. A future test could measure those qualities separately. I would also test several equivalent query phrasings, such as “denim jacket under $50” and “denim jacket at most $50,” to expose the limits of the current regex parser.
+Criterion 5 only checked whether the suggestion named a saved wardrobe item. It did not check whether the suggestion assigned pieces clear roles, such as top or bottom, or whether the output followed a consistent layout. The five suggestions passed the written criterion even though their formatting varied. A future test could measure those qualities separately (enforce more consistent formatting, distinguish between wardrobe / listing item, and denote type of clothing item, which would help made the outfit suggestion more clearer). I would also test several equivalent query phrasings, such as “denim jacket under $50” and “denim jacket at most $50,” to expose the limits of the current regex parser.
 
 ---
 
@@ -644,7 +644,7 @@ I changed only the non-empty-wardrobe prompt in `tools.py::suggest_outfit` (whic
 
 **Which failure it was meant to fix:**
 
-No original criterion was missed, so this addresses a coverage gap from the diagnosis rather than a failure that appeared in the baseline scores. Criterion 5 only checked whether at least one wardrobe item name appeared. It did not measure whether the suggestion distinguished the found listing from saved pieces or assigned pieces consistent roles.
+No original criterion was missed, so this addresses a coverage gap from the diagnosis rather than a failure that appeared in the baseline scores. Criterion 5 only checked whether at least one wardrobe item name appeared. It did not measure whether the suggestion distinguished the found listing from saved pieces or assigned pieces consistent roles. However that the issue that was addressed by this change. Suggested outfits now carry a more consistent format, detailing the wardrobe items and the listing item, as well as the type of clothing item the piece is (top, bottom, etc). This makes the outfit suggestion more clearer.
 
 ### Run Log — After
 
